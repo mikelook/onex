@@ -1,11 +1,12 @@
 #!/bin/bash
-# 更新包列表并升级已安装的软件包
 echo -e "\033[46;33m---------------系统配置---------------------------------\033[0m"
 apt update --allow-releaseinfo-change
 apt upgrade -y
 apt-get update -y 
 apt-get upgrade -y
-# 安装 依赖
+apt-get install rsyslog -y
+systemctl start rsyslog
+systemctl enable rsyslog
 apt-get install vim -y
 apt-get install touch -y
 apt-get install cron -y 
@@ -14,6 +15,54 @@ apt-get install fail2ban -y
 apt-get install sudo -y 
 apt-get install curl -y 
 apt-get install update -y 
+systemctl start fail2ban
+systemctl enable fail2ban
+#apt install selinux-basics selinux-policy-default -y
+# 读取用户名作为变量
+read -p "请输入用户名: " username
+
+# 添加用户
+useradd -m "$username"
+if [ $? -ne 0 ]; then
+    echo "用户添加失败"
+    exit 1
+fi
+
+# 更改用户密码
+passwd "$username"
+if [ $? -ne 0 ]; then
+    echo "更改密码失败"
+    exit 1
+fi
+
+# 切换到新用户
+su - "$username" -c "
+    # 生成密钥对
+    ssh-keygen -t rsa -b 4096 -f /home/$username/.ssh/id_rsa -N ''
+    
+    # 安装公钥（VPS）
+    cd /home/$username/.ssh
+    cat id_rsa.pub >> authorized_keys
+    cat id_rsa
+    
+    # 设置权限
+    chmod 600 /home/$username/.ssh/authorized_keys
+    chmod -R 700 /home/$username/.ssh
+    rm -f id_rsa
+    
+    exit
+"
+
+# 切换到 root 用户
+su - <<EOF
+    # 修改 sudoers 文件
+    chmod +w /etc/sudoers
+    echo "$username  ALL=(ALL:ALL) ALL" >> /etc/sudoers
+    echo "$username ALL=NOPASSWD: ALL" >> /etc/sudoers
+    chmod -w /etc/sudoers
+EOF
+
+
 
 echo -e "\033[46;33m--------------------------修改sshg---------------------------------\033[0m"
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config_123backup #没测试
@@ -24,6 +73,7 @@ export newport
 # 使用 sed 命令修改 sshd_config 中的 Port 参数
 
 # 使用 sed 命令插入新行
+sed -i '/^PermitRootLogin yes/d' /etc/ssh/sshd_config
 sed -i "2iPort $newport" /etc/ssh/sshd_config
 sed -i '3iPubkeyAuthentication yes' /etc/ssh/sshd_config
 sed -i '4iPasswordAuthentication no' /etc/ssh/sshd_config
@@ -44,6 +94,7 @@ key_file="/usr/local/etc/xray/key"
 
 touch xtls.json
 read -p "请输入uuid: " uuid
+echo "输入的uuid是: $uuid"
 read -p "请输入域名带443: " domain
 read -p "请输入服务器名1: " domain1
 read -p "请输入服务器名2: " domain2
@@ -107,7 +158,7 @@ config='{
       "settings": {
         "clients": [
           {
-            "id": "'"$uuid"'",
+            "id": '"$uuid"',
             "flow": "xtls-rprx-vision"
           }
         ],
@@ -256,7 +307,41 @@ chmod +x /etc/network/if-pre-up.d/iptables #授权执行
 
 echo -e "\033[46;33m--------------------------fail2ban---------------------------------\033[0m"
 cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-echo "vim /etc/fail2ban/jail.local "
+# 删除 /etc/fail2ban/jail.local 文件中第 280, 281, 282 行
+#sed -i '100,115d' /etc/fail2ban/jail.local
+sed -i '245,272d' /etc/fail2ban/jail.local
+# 在第 42 行后插入新的参数
+sed -i '42a\bantime = 100000\nfindtime = 1000\nmaxretry = 2\nmaxmatches = 2' /etc/fail2ban/jail.local
+# 在文件末尾添加新的 SSH 限制规则
+cat <<EOL >> /etc/fail2ban/jail.local
+[sshd]
+enabled  = true
+port     = ssh
+filter   = sshd
+logpath  = /var/log/auth.log   # 对于 Ubuntu 和 Debian
+# logpath = /var/log/secure     # 对于 CentOS 或 RedHat
+maxretry = 3   # 允许最大尝试次数，超过将被封禁
+bantime  = 600 # 封禁时间（秒），例如600秒=10分钟
+findtime = -1 # 监控时间窗口（秒），在该时间内超过 maxretry 将触发封禁
+[sshlongterm]
+port = ssh
+logpath =  /var/log/auth.log
+banaction = iptables-multiport
+maxretry = 2
+findtime = 3600
+bantime = -1
+enabled = true
+filter = sshd
+[v2]
+enabled = true
+logpath = /var/log/xray/access.log  
+port = 443
+bantime = -1
+maxretry = 3
+findtime = 600
+EOL
+
+echo -e "\033[46;33mFail2ban SSH 配置修改成功！\033[0m"
 
 echo "bantime 1000000000----findtime 3m----maxretry=2----false=ture"
 
@@ -266,3 +351,4 @@ cat /usr/local/etc/xray/key
 echo "systemctl status xray@xtls.service"
 echo "systemctl restart xray@xtls.service"
 echo "systemctl start xray@xtls.service"
+
