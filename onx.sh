@@ -1,13 +1,14 @@
 #!/bin/bash
 echo -e "\033[46;33m---------------系统配置---------------------------------\033[0m"
 # 更新包列表并升级已安装的软件包
-apt update --allow-releaseinfo-change
+apt-get update --allow-releaseinfo-change
 apt upgrade -y
 apt-get update -y 
 apt-get upgrade -y
 # 安装 依赖
 apt-get install rsyslog -y
-
+#systemctl start rsyslog
+#systemctl enable rsyslog
 apt-get install vim -y
 apt-get install touch -y
 apt-get install cron -y 
@@ -16,10 +17,6 @@ apt-get install fail2ban -y
 apt-get install sudo -y 
 apt-get install curl -y 
 apt-get install update -y 
-#systemctl start fail2ban
-#systemctl enable fail2ban
-#apt install selinux-basics selinux-policy-default -y
-
 
 
 echo -e "\033[46;33m--------------------------修改sshg---------------------------------\033[0m"
