@@ -1,12 +1,13 @@
 #!/bin/bash
 echo -e "\033[46;33m---------------系统配置---------------------------------\033[0m"
+# 更新包列表并升级已安装的软件包
 apt update --allow-releaseinfo-change
 apt upgrade -y
 apt-get update -y 
 apt-get upgrade -y
+# 安装 依赖
 apt-get install rsyslog -y
-systemctl start rsyslog
-systemctl enable rsyslog
+
 apt-get install vim -y
 apt-get install touch -y
 apt-get install cron -y 
@@ -15,51 +16,9 @@ apt-get install fail2ban -y
 apt-get install sudo -y 
 apt-get install curl -y 
 apt-get install update -y 
-
+#systemctl start fail2ban
+#systemctl enable fail2ban
 #apt install selinux-basics selinux-policy-default -y
-# 读取用户名作为变量
-read -p "请输入用户名: " username
-
-# 添加用户
-useradd -m "$username"
-if [ $? -ne 0 ]; then
-    echo "用户添加失败"
-    exit 1
-fi
-
-# 更改用户密码
-passwd "$username"
-if [ $? -ne 0 ]; then
-    echo "更改密码失败"
-    exit 1
-fi
-
-# 切换到新用户
-su - "$username" -c "
-    # 生成密钥对
-    ssh-keygen -t rsa -b 4096 -f /home/$username/.ssh/id_rsa -N ''
-    
-    # 安装公钥（VPS）
-    cd /home/$username/.ssh
-    cat id_rsa.pub >> authorized_keys
-    cat id_rsa
-    
-    # 设置权限
-    chmod 600 /home/$username/.ssh/authorized_keys
-    chmod -R 700 /home/$username/.ssh
-    rm -f id_rsa
-    
-    exit
-"
-
-# 切换到 root 用户
-su - <<EOF
-    # 修改 sudoers 文件
-    chmod +w /etc/sudoers
-    echo "$username  ALL=(ALL:ALL) ALL" >> /etc/sudoers
-    echo "$username ALL=NOPASSWD: ALL" >> /etc/sudoers
-    chmod -w /etc/sudoers
-EOF
 
 
 
@@ -339,7 +298,8 @@ bantime = -1
 maxretry = 3
 findtime = 600
 EOL
-
+systemctl start rsyslog
+systemctl enable rsyslog
 echo -e "\033[46;33mFail2ban SSH 配置修改成功！\033[0m"
 
 echo "bantime 1000000000----findtime 3m----maxretry=2----false=ture"
