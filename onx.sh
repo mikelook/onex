@@ -1,12 +1,12 @@
 #!/bin/bash
 echo -e "\033[46;33m---------------系统配置---------------------------------\033[0m"
 # 更新包列表并升级已安装的软件包
-apt-get update --allow-releaseinfo-change
+apt update --allow-releaseinfo-change
 apt upgrade -y
 apt-get update -y 
 apt-get upgrade -y
 # 安装 依赖
-apt-get install rsyslog -y
+#apt-get install rsyslog
 #systemctl start rsyslog
 #systemctl enable rsyslog
 apt-get install vim -y
@@ -17,6 +17,7 @@ apt-get install fail2ban -y
 apt-get install sudo -y 
 apt-get install curl -y 
 apt-get install update -y 
+
 
 
 echo -e "\033[46;33m--------------------------修改sshg---------------------------------\033[0m"
@@ -262,42 +263,7 @@ chmod +x /etc/network/if-pre-up.d/iptables #授权执行
 
 echo -e "\033[46;33m--------------------------fail2ban---------------------------------\033[0m"
 cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-# 删除 /etc/fail2ban/jail.local 文件中第 280, 281, 282 行
-#sed -i '100,115d' /etc/fail2ban/jail.local
-sed -i '245,272d' /etc/fail2ban/jail.local
-# 在第 42 行后插入新的参数
-sed -i '42a\bantime = 100000\nfindtime = 1000\nmaxretry = 2\nmaxmatches = 2' /etc/fail2ban/jail.local
-# 在文件末尾添加新的 SSH 限制规则
-cat <<EOL >> /etc/fail2ban/jail.local
-[sshd]
-enabled  = true
-port     = ssh
-filter   = sshd
-logpath  = /var/log/auth.log   # 对于 Ubuntu 和 Debian
-# logpath = /var/log/secure     # 对于 CentOS 或 RedHat
-maxretry = 3   # 允许最大尝试次数，超过将被封禁
-bantime  = 600 # 封禁时间（秒），例如600秒=10分钟
-findtime = -1 # 监控时间窗口（秒），在该时间内超过 maxretry 将触发封禁
-[sshlongterm]
-port = ssh
-logpath =  /var/log/auth.log
-banaction = iptables-multiport
-maxretry = 2
-findtime = 3600
-bantime = -1
-enabled = true
-filter = sshd
-[v2]
-enabled = true
-logpath = /var/log/xray/access.log  
-port = 443
-bantime = -1
-maxretry = 3
-findtime = 600
-EOL
-systemctl start rsyslog
-systemctl enable rsyslog
-echo -e "\033[46;33mFail2ban SSH 配置修改成功！\033[0m"
+echo "vim /etc/fail2ban/jail.local "
 
 echo "bantime 1000000000----findtime 3m----maxretry=2----false=ture"
 
@@ -307,4 +273,3 @@ cat /usr/local/etc/xray/key
 echo "systemctl status xray@xtls.service"
 echo "systemctl restart xray@xtls.service"
 echo "systemctl start xray@xtls.service"
-
