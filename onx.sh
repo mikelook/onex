@@ -15,8 +15,7 @@ apt-get install fail2ban -y
 apt-get install sudo -y 
 apt-get install curl -y 
 apt-get install update -y 
-systemctl start fail2ban
-systemctl enable fail2ban
+
 #apt install selinux-basics selinux-policy-default -y
 # 读取用户名作为变量
 read -p "请输入用户名: " username
